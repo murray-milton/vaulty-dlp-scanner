@@ -1,0 +1,3 @@
+[bandit]
+targets: src/vaulty
+skips: B101,B110  # allow assert in tests; ignore bare except in test code if needed
