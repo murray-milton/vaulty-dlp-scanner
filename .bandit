@@ -1,3 +1,12 @@
-[bandit]
-targets: src/vaulty
-skips: B101,B110  # allow assert in tests; ignore bare except in test code if needed
+# .bandit
+---
+# Optional: Directories to exclude from scanning
+exclude_dirs:
+  - tests
+  - venv
+  - .git
+
+# Optional: Tests to skip (use Bandit test IDs)
+skips:
+  - B101  # assert used
+  - B110  # try-except-pass detected
