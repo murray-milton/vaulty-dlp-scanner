@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vaulty-dlp-scanner"
+version = "0.1.0"
+description = "Vaulty — beginner-friendly local DLP scanner with explainable findings"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+addopts = "-q"
+
+[tool.coverage.run]
+branch = true
+source = ["src/vaulty"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+strict_optional = true
+check_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 100
+select = ["E","F","I","B","UP","SIM"]
+ignore = ["E203"]
+
+[tool.black]
+line-length = 100
