@@ -1,0 +1,15 @@
+streamlit>=1.36
+pandas>=2.2
+pdfminer.six>=20231228
+pypdf>=4.2
+python-dotenv>=1.0
+bandit>=1.7
+pytest>=8.2
+coverage>=7.6
+
+# Dev quality gates
+black>=24.8
+ruff>=0.6.8
+mypy>=1.11
+pre-commit>=3.7
+radon>=6.0
