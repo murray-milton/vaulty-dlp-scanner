@@ -110,8 +110,8 @@ We do this to keep things explainable and ethical:
 
 ---
 
-## 🏗️ Architecture (Concept)
+## 🏗️ Architecture and Working Design
 
-Vaulty is intentionally modular and easy to reason about:
+Vaulty follows a modular design and easy to reason about:
 
  <img src="docs/images/vaulty_architecture_concept.svg" alt="Vaulty Banner" width="100%" />
