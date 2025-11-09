@@ -23,8 +23,8 @@ It represents the culmination of our degree program, integrating cybersecurity, 
 
 ## 👥 Team
 
-- **Murray Milton** — Project Lead / Developer  
-- **Johnny Irvin** — QA Engineer / Security Tester
+- **Murray Milton** —  
+- **Johnny Irvin** — 
 
 ---
 
