@@ -21,7 +21,7 @@ import streamlit as stream
 
 
 try:
-    from reporting import human_summary, to_json  # type: ignore[attr-defined]
+    from reporting import human_summary, to_json
 except (ImportError, AttributeError):
 
     def human_summary(scan_findings: Iterable[Any]) -> str:
@@ -40,7 +40,7 @@ except (ImportError, AttributeError):
 
 
 try:
-    from scanner import scan_file  # type: ignore[attr-defined]
+    from scanner import scan_file
 except (ImportError, AttributeError):
 
     def scan_file(input_path: Path) -> list[Any]:
@@ -49,7 +49,7 @@ except (ImportError, AttributeError):
 
 
 try:
-    from utils import get_logger, safe_filename  # type: ignore[attr-defined]
+    from utils import get_logger, safe_filename
 except (ImportError, AttributeError):
 
     def get_logger(logger_name: str) -> logging.Logger:
@@ -483,3 +483,5 @@ if (uploaded_file and scan_button_clicked) or demo_mode_enabled:
         "</div>",
         unsafe_allow_html=True,
     )
+
+""" Possible revisions after main intergration of Search Engine"""
