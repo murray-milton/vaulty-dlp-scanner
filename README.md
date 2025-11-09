@@ -122,7 +122,7 @@ Vaulty follows a modular design and easy to reason about:
 ## 🖥️ Vaulty UI Preview
 
 <div align="center">
-  <img src="docs/images/vaulty_ui_preview.png" alt="Vaulty UI Preview" width="85%" style="border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);" />
+  <img src="docs/images/vaulty_ui_preview.png" alt="Vaulty UI Preview" width="100%" />
   <br />
   <em> Vaulty User Dashboard: Scanning with Results Overview section.</em>
 </div>
