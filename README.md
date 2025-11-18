@@ -125,4 +125,5 @@ Vaulty follows a modular design and easy to reason about:
   <img src="docs/images/vaulty_ui_preview.png" alt="Vaulty UI Preview" width="100%" />
   <br />
   <em> Vaulty User Dashboard: Scanning with Results Overview section.</em>
+  <em> Vaulty User Dashboard: Scanning with Results Overview section.</em>
 </div>
