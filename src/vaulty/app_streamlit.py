@@ -14,6 +14,7 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 import streamlit as stream
+from PIL import Image
 
 # =============================================================================
 # Dependency imports with safe fallbacks
@@ -71,9 +72,26 @@ except (ImportError, AttributeError):
 # =============================================================================
 
 
-stream.set_page_config(page_title="Vaulty - DLP Scanner", layout="centered")
+stream.set_page_config(page_title="Vaulty - DLP Scanner", layout="wide")
 
 base_dir = Path(__file__).resolve().parent
+favicon_path = base_dir / "static" / "image" / "vaulty_favicon.png"
+
+if favicon_path.exists():
+    vaulty_icon = Image.open(favicon_path)
+    stream.set_page_config(
+        page_title="Vaulty - DLP Scanner",
+        page_icon=vaulty_icon,
+        layout="centered",
+    )
+else:
+    stream.set_page_config(
+        page_title="Vaulty - DLP Scanner",
+        page_icon="🔒",
+        layout="wide",
+    )
+
+
 css_path = base_dir / "static" / "style.css"
 
 if css_path.exists():

@@ -1,1 +1,1 @@
-# Pending Development
+# Testing for the detectors
