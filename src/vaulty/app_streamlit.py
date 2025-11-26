@@ -1,13 +1,23 @@
-"""Vaulty Streamlit App (locally run DLP scanner UI)."""
+"""Vaulty Streamlit App (locally run DLP scanner UI).
+
+This UI is designed for non-technical users:
+
+1. Upload a TXT / CSV / PDF file.
+2. Vaulty scans the file locally (no network calls).
+3. The app shows a high-level summary and lets users download a JSON report.
+
+Privacy:
+    - No raw PII is shown in the UI.
+    - All processing happens on the local machine.
+    - JSON reports are written to data/reports/ only.
+"""
 
 from __future__ import annotations
 
 import base64
-import logging
 import mimetypes
 import time
-from collections import Counter, namedtuple
-from collections.abc import Iterable
+from collections import Counter
 from contextlib import suppress
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -16,84 +26,35 @@ from typing import Any
 import streamlit as stream
 from PIL import Image
 
-# =============================================================================
-# Dependency imports with safe fallbacks
-# =============================================================================
-
-
-try:
-    from reporting import human_summary, to_json
-except (ImportError, AttributeError):
-
-    def human_summary(scan_findings: Iterable[Any]) -> str:
-        """Fallback summary while reporting is under development."""
-        finding_list = list(scan_findings)
-        count = len(finding_list)
-        return f"Scan complete. {count} finding(s). [stub summary]"
-
-    def to_json(scan_findings: Iterable[Any], output_path: Path) -> None:
-        """Fallback JSON writer while reporting is under development."""
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            '{"status": "stub", "findings": []}',
-            encoding="utf-8",
-        )
-
-
-try:
-    from scanner import scan_file
-except (ImportError, AttributeError):
-
-    def scan_file(input_path: Path) -> list[Any]:
-        """Fallback scanner that returns no findings."""
-        return []
-
-
-try:
-    from utils import get_logger, safe_filename
-except (ImportError, AttributeError):
-
-    def get_logger(logger_name: str) -> logging.Logger:
-        """Fallback logger helper using the stdlib logging module."""
-        return logging.getLogger(logger_name)
-
-    def safe_filename(original_name: str) -> str:
-        """Fallback filename sanitizer for uploads."""
-        unsafe_chars = ["/", "\\", ":", "*", "?", '"', "<", ">", "|"]
-        safe_name = original_name
-        for char in unsafe_chars:
-            safe_name = safe_name.replace(char, "_")
-        safe_name = safe_name.strip() or "upload"
-        return safe_name
-
+from vaulty.detectors import Finding
+from vaulty.reporting import human_summary, to_json
+from vaulty.scanner import scan_file
+from vaulty.utils import get_logger, safe_filename
 
 # =============================================================================
 # Page setup and global styling
 # =============================================================================
 
-
-stream.set_page_config(page_title="Vaulty - DLP Scanner", layout="wide")
-
 base_dir = Path(__file__).resolve().parent
 favicon_path = base_dir / "static" / "image" / "vaulty_favicon.png"
 
+page_icon: Any = "🔒"
 if favicon_path.exists():
-    vaulty_icon = Image.open(favicon_path)
-    stream.set_page_config(
-        page_title="Vaulty - DLP Scanner",
-        page_icon=vaulty_icon,
-        layout="centered",
-    )
-else:
-    stream.set_page_config(
-        page_title="Vaulty - DLP Scanner",
-        page_icon="🔒",
-        layout="wide",
-    )
+    try:
+        page_icon = Image.open(favicon_path)
+    except Exception:
+        # Fall back to emoji if icon fails to load
+        page_icon = "🔒"
 
+stream.set_page_config(
+    page_title="Vaulty - DLP Scanner",
+    page_icon=page_icon,
+    layout="wide",
+)
+
+log = get_logger("vaulty")
 
 css_path = base_dir / "static" / "style.css"
-
 if css_path.exists():
     stream.markdown(
         f"<style>{css_path.read_text()}</style>",
@@ -108,10 +69,8 @@ else:
 # Logo handling (shared between header and sidebar)
 # =============================================================================
 
-
 logo_path = base_dir / "static" / "image" / "Vaulty Logo.svg"
 encoded_logo_svg: str | None
-
 if logo_path.exists():
     encoded_logo_svg = base64.b64encode(logo_path.read_bytes()).decode("utf-8")
 else:
@@ -146,7 +105,6 @@ stream.markdown(
 # =============================================================================
 # Sidebar: logo + recent scans for this session
 # =============================================================================
-
 
 with stream.sidebar:
     if encoded_logo_svg:
@@ -184,7 +142,6 @@ with stream.sidebar:
 # One-time privacy / onboarding notice
 # =============================================================================
 
-
 if "onboarded" not in stream.session_state:
     stream.session_state.onboarded = False
 
@@ -204,26 +161,25 @@ if not stream.session_state.get("onboarded", False):
             stream.rerun()
 
 # =============================================================================
-# Scan options (toggle which signals we look for)
+# Scan options (UI-only toggles for now)
 # =============================================================================
-
 
 scan_options = stream.session_state.setdefault(
     "options",
-    {"anonymize": True, "include_ipv4": False, "include_phone": False},
+    {"anonymize": True, "include_ipv4": False, "include_phone": True},
 )
 
 
 def render_scan_options() -> None:
-    """Render the scan options controls."""
+    """Render the scan options controls (UI-only for now)."""
     stream.caption("Adjust what Vaulty looks for (local-only).")
     scan_options["anonymize"] = stream.toggle(
-        "Anonymize any sample snippets",
+        "Anonymize any sample snippets (future redaction mode)",
         value=scan_options["anonymize"],
         key="opt_anon",
     )
     scan_options["include_ipv4"] = stream.toggle(
-        "Detect IPv4 addresses",
+        "Detect IPv4 addresses (future rule set)",
         value=scan_options["include_ipv4"],
         key="opt_ipv4",
     )
@@ -240,10 +196,8 @@ if hasattr(stream, "popover"):
             "Scan options ⚙️",
             use_container_width=True,
         ):
-            # Popover is available in this Streamlit version.
             render_scan_options()
     except TypeError:
-        # Fallback for older Streamlit builds.
         with stream.popover("Scan options ⚙️"):
             render_scan_options()
 else:
@@ -254,7 +208,6 @@ else:
 # File uploader card + clear state
 # =============================================================================
 
-
 if "uploader_key" not in stream.session_state:
     stream.session_state.uploader_key = 0
 
@@ -262,7 +215,7 @@ with stream.container():
     stream.markdown('<div class="vaulty-card">', unsafe_allow_html=True)
     stream.markdown('<div class="uicon">⬆️</div>', unsafe_allow_html=True)
     stream.markdown(
-        '<div class="uhelp">' "Upload a TXT, CSV, or PDF file (≤ 5 MB)" "</div>",
+        '<div class="uhelp">Upload a TXT, CSV, or PDF file (≤ 5 MB)</div>',
         unsafe_allow_html=True,
     )
 
@@ -273,17 +226,17 @@ with stream.container():
         label_visibility="collapsed",
     )
 
-    column_left, column_scan, column_spacer, column_clear, column_right = stream.columns(
-        [1, 1, 0.5, 1, 1]
+    col_left, col_scan, col_spacer, col_clear, col_right = stream.columns(
+        [1, 1, 0.5, 1, 1],
     )
-    with column_scan:
+    with col_scan:
         scan_button_clicked = stream.button(
             "Scan Now",
             type="primary",
             use_container_width=True,
             key="btn_scan",
         )
-    with column_clear:
+    with col_clear:
         clear_button_clicked = stream.button(
             "Clear File",
             use_container_width=True,
@@ -298,21 +251,20 @@ if clear_button_clicked:
     stream.rerun()
 
 # =============================================================================
-# Demo mode toggle (for UI preview with dummy data)
+# Demo mode toggle (uses real Finding objects, no real file)
 # =============================================================================
-
 
 demo_mode_enabled = stream.toggle(
     "💡 Demo Mode",
     value=False,
-    help="Preview the UI with dummy scan data (no real scanning).",
+    help="Preview the UI with dummy scan data (no real file scan).",
 )
 
 if demo_mode_enabled:
     stream.toast("Running Vaulty in demo mode (no real scan).", icon="🧩")
 
 # Prepare variables for later UI use so type checkers are happy.
-scan_findings: list[Any] = []
+scan_findings: list[Finding] = []
 scan_elapsed_seconds: float = 0.0
 scan_safe_name: str = "scan"
 scan_report_path: Path | None = None
@@ -321,24 +273,41 @@ scan_report_path: Path | None = None
 # Scan engine (real or demo)
 # =============================================================================
 
-
 if (uploaded_file and scan_button_clicked) or demo_mode_enabled:
+    reports_dir = Path("data/reports")
+    reports_dir.mkdir(parents=True, exist_ok=True)
+
     if demo_mode_enabled:
-        DemoFinding = namedtuple("DemoFinding", ["detector", "text"])
-        scan_findings = [
-            DemoFinding("email", "user@example.com"),
-            DemoFinding("ssn", "123-45-6789"),
-            DemoFinding("card", "4111 1111 1111 1111"),
-            DemoFinding("email", "contact@company.org"),
-            DemoFinding("ssn", "999-99-9999"),
-        ]
-        scan_elapsed_seconds = 1.23
+        # Demo mode: fabricate a few realistic findings using the real model.
         scan_safe_name = "demo_file.txt"
-
-        reports_dir = Path("data/reports")
-        reports_dir.mkdir(parents=True, exist_ok=True)
-
-        scan_report_path = reports_dir / scan_safe_name
+        scan_elapsed_seconds = 1.23
+        scan_findings = [
+            Finding(
+                detector="email",
+                match="user@example.com",
+                start=10,
+                end=26,
+                risk_score=2.0,
+                why="base=2.0 + context_boost=0.0",
+            ),
+            Finding(
+                detector="ssn_us",
+                match="123-45-6789",
+                start=40,
+                end=51,
+                risk_score=4.0,
+                why="base=4.0 + context_boost=0.0",
+            ),
+            Finding(
+                detector="credit_card",
+                match="4111 1111 1111 1111",
+                start=80,
+                end=99,
+                risk_score=4.5,
+                why="base=4.0 + context_boost=0.5",
+            ),
+        ]
+        scan_report_path = reports_dir / f"{scan_safe_name}.json"
         to_json(scan_findings, scan_report_path)
 
     else:
@@ -364,14 +333,18 @@ if (uploaded_file and scan_button_clicked) or demo_mode_enabled:
             stream.stop()
 
         scan_safe_name = safe_filename(uploaded_file.name or "upload")
-        reports_dir = Path("data/reports")
-        reports_dir.mkdir(parents=True, exist_ok=True)
 
         with stream.status("Preparing to scan…", expanded=True) as status_ctx:
             scan_started_at = time.perf_counter()
 
             stream.write("• Saving upload to a secure temp file")
-            with NamedTemporaryFile(delete=False) as temp_file:
+
+            # 🔧 IMPORTANT FIX: preserve original suffix so scanner picks extractor
+            original_suffix = Path(uploaded_file.name or "upload").suffix
+            with NamedTemporaryFile(
+                delete=False,
+                suffix=original_suffix,
+            ) as temp_file:
                 temp_file.write(file_bytes)
                 temp_path = Path(temp_file.name)
 
@@ -382,10 +355,7 @@ if (uploaded_file and scan_button_clicked) or demo_mode_enabled:
             try:
                 scan_findings = scan_file(temp_path)
             except Exception:
-                get_logger("vaulty").exception(
-                    "scan_failed file=%s",
-                    scan_safe_name,
-                )
+                log.exception("scan_failed file=%s", scan_safe_name)
                 stream.error(
                     "Scan failed. The file may be encrypted or malformed.",
                 )
@@ -408,9 +378,7 @@ if (uploaded_file and scan_button_clicked) or demo_mode_enabled:
     # Shared UI for both real and demo scans
     # -------------------------------------------------------------------------
 
-    detector_counts = (
-        Counter(finding.detector for finding in scan_findings) if scan_findings else Counter()
-    )
+    detector_counts = Counter(finding.detector for finding in scan_findings)
 
     recent_scan_items = stream.session_state.setdefault("recent_scans", [])
     recent_scan_items.append(
@@ -429,13 +397,7 @@ if (uploaded_file and scan_button_clicked) or demo_mode_enabled:
 
     with tab_results:
         stream.subheader("Results")
-
-        @stream.cache_data(ttl=30, show_spinner=False)
-        def cached_summary(findings_input: Iterable[Any]) -> str:
-            """Cache summary calls for short-term performance."""
-            return human_summary(findings_input)
-
-        stream.code(cached_summary(scan_findings))
+        stream.code(human_summary(scan_findings))
 
     with tab_findings:
         stream.markdown("### Findings Summary")
@@ -452,10 +414,10 @@ if (uploaded_file and scan_button_clicked) or demo_mode_enabled:
               </div>
               <div class="frow">
                 <div class="badge">
-                  <span class="pill ssn">◎</span> SSN
+                  <span class="pill ssn">◎</span> SSN (US)
                 </div>
                 <div class="count">
-                  {detector_counts.get('ssn', 0)}
+                  {detector_counts.get('ssn_us', 0)}
                 </div>
               </div>
               <div class="frow">
@@ -463,7 +425,15 @@ if (uploaded_file and scan_button_clicked) or demo_mode_enabled:
                   <span class="pill card">■</span> Credit Card
                 </div>
                 <div class="count">
-                  {detector_counts.get('card', 0)}
+                  {detector_counts.get('credit_card', 0)}
+                </div>
+              </div>
+              <div class="frow">
+                <div class="badge">
+                  <span class="pill phone">☎︎</span> Phone
+                </div>
+                <div class="count">
+                  {detector_counts.get('phone', 0)}
                 </div>
               </div>
             </div>
@@ -501,5 +471,3 @@ if (uploaded_file and scan_button_clicked) or demo_mode_enabled:
         "</div>",
         unsafe_allow_html=True,
     )
-
-""" Possible revisions after main intergration of Search Engine"""
