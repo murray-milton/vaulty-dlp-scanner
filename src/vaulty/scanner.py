@@ -22,7 +22,7 @@ ExtractorFunc = Callable[[Path], tuple[str, str]]
 
 def _pick_extractor(path: Path) -> ExtractorFunc | None:
     """Return the correct extractor function for a file, if supported."""
-
+    # ✅ LAZY IMPORT FIX
     from .extractors import from_csv, from_pdf, from_txt
 
     suffix = path.suffix.lower()
@@ -59,14 +59,18 @@ def scan_file(
     input_path: str | Path,
     *,
     options: dict[str, Any] | None = None,
-) -> list[Finding]:
-    """Scan a file by extracting text and running detectors."""
+) -> tuple[list[Finding], str]:
+    """
+    Scan a file by extracting text and running detectors.
+    Returns: (List of findings, The full extracted text string)
+    """
     path = Path(input_path)
 
     try:
         file_text = read_any(path)
     except ValueError:
-        return []
+        return [], ""
 
     findings = detect(file_text, file_name=path.name)
-    return findings
+    # Return both findings and the text so UI can do redaction/highlighting
+    return findings, file_text

@@ -16,6 +16,8 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.pytest.ini_options]
+# ✅ FIXED: This tells pytest to look in 'src' for modules
+pythonpath = ["src"]
 testpaths = ["tests"]
 python_files = "test_*.py"
 addopts = "-q"

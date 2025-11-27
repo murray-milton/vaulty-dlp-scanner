@@ -12,43 +12,35 @@ PATTERNS: dict[str, re.Pattern[str]] = {
     "ssn_us": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
     "phone": re.compile(r"\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"),
     "credit_card": re.compile(r"\b(?:\d[ -]?){13,19}\b"),
+    # 🆕 NEW: Technical Detectors
+    "aws_key": re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    "api_key": re.compile(
+        r"(?i)(?:api_key|apikey|secret|token)\s*[:=]\s*['\"]([a-zA-Z0-9_\-]{20,})['\"]"
+    ),
 }
 
-# Base risk by type (0–10 scale is capped later)
 RISK_BASE_BY_TYPE: dict[str, float] = {
     "credit_card": 4.0,
     "ssn_us": 4.0,
     "email": 2.0,
     "phone": 2.0,
+    "aws_key": 10.0,  # 🆕 Critical Risk
+    "api_key": 8.0,  # 🆕 High Risk
 }
 
-# Context boost terms for explainable scoring
 RISK_CONTEXT_BOOST_TERMS: dict[str, float] = {
     "ssn": 0.5,
     "visa": 0.5,
     "mastercard": 0.5,
     "password": 0.5,
+    "secret": 1.0,
+    "key": 0.5,
 }
 
 
 @dataclass(slots=True)
 class Finding:
-    """Single detection finding for review and reporting.
-
-    Attributes:
-        detector:
-            Name of the detector that triggered (e.g. "email", "credit_card").
-        match:
-            The exact substring that matched.
-        start:
-            Start character offset of the match.
-        end:
-            End character offset of the match.
-        risk_score:
-            Final numeric score (0–10 capped). Higher means higher risk.
-        why:
-            Human-readable scoring explanation string ("base=...+boost=...").
-    """
+    """Single detection finding for review and reporting."""
 
     detector: str
     match: str
@@ -77,7 +69,6 @@ def _score_with_context(detector: str, context_window: str) -> tuple[float, str]
     applied_boost = 0.0
     for word, inc in RISK_CONTEXT_BOOST_TERMS.items():
         if word in lower_ctx:
-            # take the max boost term seen in context
             applied_boost = max(applied_boost, inc)
 
     score = min(10.0, base + applied_boost)
@@ -92,11 +83,13 @@ def detect(text: str, *, file_name: str | None = None) -> list[Finding]:
     for detector_name, pattern in PATTERNS.items():
         for match_obj in pattern.finditer(text):
             raw_value = match_obj.group(0)
+            # For api_key regex which uses a group for the value
+            if detector_name == "api_key" and match_obj.groups():
+                raw_value = match_obj.group(1)
 
             if not _validate_detector_hit(detector_name, raw_value):
                 continue
 
-            # Will handle our scoring and explainability.
             left_idx = max(0, match_obj.start() - 40)
             right_idx = min(len(text), match_obj.end() + 40)
             window = text[left_idx:right_idx]
@@ -115,6 +108,3 @@ def detect(text: str, *, file_name: str | None = None) -> list[Finding]:
             )
 
     return findings
-
-
-# Developer note:

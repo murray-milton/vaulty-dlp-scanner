@@ -1,11 +1,15 @@
 .PHONY: setup run test cov bandit fmt lint type complexity ci
 
 setup:
+	# Install production dependencies
 	pip install -r requirements.txt
+	# Install development tools (for testing/linting)
+	pip install -r requirements.txt
+	# Setup pre-commit hooks
 	pre-commit install
 
 run:
-	streamlit run src/vaulty/app_streamlit.py
+	streamlit run streamlit_app.py
 
 test:
 	pytest
