@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 from .detectors import Finding, detect
-from .extractors import from_csv, from_pdf, from_txt
 
 SUPPORTED_SUFFIXES = {".txt", ".csv", ".pdf"}
 
@@ -23,6 +22,10 @@ ExtractorFunc = Callable[[Path], tuple[str, str]]
 
 def _pick_extractor(path: Path) -> ExtractorFunc | None:
     """Return the correct extractor function for a file, if supported."""
+
+    # ✅ CRITICAL FIX: Import extractors lazily to prevent global memory instability
+    from .extractors import from_csv, from_pdf, from_txt
+
     suffix = path.suffix.lower()
 
     if suffix == ".txt":
@@ -68,6 +71,3 @@ def scan_file(
 
     findings = detect(file_text, file_name=path.name)
     return findings
-
-
-# Developer note:
