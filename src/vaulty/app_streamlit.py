@@ -15,20 +15,24 @@ Privacy:
 from __future__ import annotations
 
 import base64
+import mimetypes
+import time
 from collections import Counter
+from contextlib import suppress
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any
 
 import streamlit as stream
 
 # from PIL import Image # Removed as it's no longer needed for favicon
+# ✅ MODULE STABILITY: Imports are back at the top to resolve the low-level crash
 from vaulty.detectors import Finding
 from vaulty.reporting import human_summary, to_json
+from vaulty.scanner import scan_file
+from vaulty.utils import get_logger, safe_filename
 
-# 🛑 DEBUGGING ISOLATION: Temporarily comment out the heavy dependency import
-# from vaulty.scanner import scan_file
-
-# --- Caching Function Definition ---
+# --- Caching Function Definition (CRITICAL FIX) ---
 
 
 @stream.cache_resource
@@ -142,10 +146,11 @@ with stream.sidebar:
             )
 
 # =============================================================================
-# 🚨 DEBUGGING WRAPPER START 🚨
+# 🚨 STABILITY WRAPPER START 🚨
 # Everything below this point is wrapped in a try/except to catch runtime issues.
 # =============================================================================
 try:
+
     # =============================================================================
     # One-time privacy / onboarding notice
     # =============================================================================
@@ -280,49 +285,112 @@ try:
     # =============================================================================
 
     if (uploaded_file and scan_button_clicked) or demo_mode_enabled:
-
-        # We cannot call scan_file here because we commented out its import.
-        # This forces the app to run only the demo logic.
-
-        if "scan_file" not in locals():
-            stream.warning("⚠️ Scanner is temporarily disabled for debugging. Running Demo Mode.")
-
-        # --- Demo mode: fabricate a few realistic findings using the real model. ---
-        scan_safe_name = "demo_file.txt"
-        scan_elapsed_seconds = 1.23
-        scan_findings = [
-            Finding(
-                detector="email",
-                match="user@example.com",
-                start=10,
-                end=26,
-                risk_score=2.0,
-                why="base=2.0 + context_boost=0.0",
-            ),
-            Finding(
-                detector="ssn_us",
-                match="123-45-6789",
-                start=40,
-                end=51,
-                risk_score=4.0,
-                why="base=4.0 + context_boost=0.0",
-            ),
-            Finding(
-                detector="credit_card",
-                match="4111 1111 1111 1111",
-                start=80,
-                end=99,
-                risk_score=4.5,
-                why="base=4.0 + context_boost=0.5",
-            ),
-        ]
-
-        # --- Shared UI for both real and demo scans ---
-
         reports_dir = Path("data/reports")
         reports_dir.mkdir(parents=True, exist_ok=True)
-        scan_report_path = reports_dir / f"{scan_safe_name}.json"
-        to_json(scan_findings, scan_report_path)
+
+        if demo_mode_enabled:
+            # Demo mode: fabricate a few realistic findings using the real model.
+            scan_safe_name = "demo_file.txt"
+            scan_elapsed_seconds = 1.23
+            scan_findings = [
+                Finding(
+                    detector="email",
+                    match="user@example.com",
+                    start=10,
+                    end=26,
+                    risk_score=2.0,
+                    why="base=2.0 + context_boost=0.0",
+                ),
+                Finding(
+                    detector="ssn_us",
+                    match="123-45-6789",
+                    start=40,
+                    end=51,
+                    risk_score=4.0,
+                    why="base=4.0 + context_boost=0.0",
+                ),
+                Finding(
+                    detector="credit_card",
+                    match="4111 1111 1111 1111",
+                    start=80,
+                    end=99,
+                    risk_score=4.5,
+                    why="base=4.0 + context_boost=0.5",
+                ),
+            ]
+            scan_report_path = reports_dir / f"{scan_safe_name}.json"
+            to_json(scan_findings, scan_report_path)
+
+        else:
+            # --- Real Scan Logic ---
+            log = get_logger("vaulty")  # Initialize logger lazily
+
+            max_megabytes = 5
+            max_bytes = max_megabytes * 1024 * 1024
+            file_bytes = uploaded_file.read()
+
+            if len(file_bytes) > max_bytes:
+                stream.error(
+                    "File too large. " f"Please upload a file under {max_megabytes} MB.",
+                )
+                stream.toast("That file exceeds the size limit.", icon="⚠️")
+                stream.stop()
+
+            allowed_mime_types = {
+                "text/plain",
+                "text/csv",
+                "application/pdf",
+            }
+            mime_type, _ = mimetypes.guess_type(uploaded_file.name or "")
+            if mime_type not in allowed_mime_types:
+                stream.error("Unsupported file type.")
+                stream.stop()
+
+            scan_safe_name = safe_filename(uploaded_file.name or "upload")
+
+            with stream.status("Preparing to scan…", expanded=True) as status_ctx:
+                scan_started_at = time.perf_counter()
+
+                stream.write("• Saving upload to a secure temp file")
+
+                # 🔧 preserve original suffix so scanner picks extractor
+                original_suffix = Path(uploaded_file.name or "upload").suffix
+                with NamedTemporaryFile(
+                    delete=False,
+                    suffix=original_suffix,
+                ) as temp_file:
+                    temp_file.write(file_bytes)
+                    temp_path = Path(temp_file.name)
+
+                progress_bar = stream.progress(0)
+                stream.write("• Extracting text & running detectors")
+                progress_bar.progress(30)
+
+                try:
+                    scan_findings = scan_file(temp_path)
+                except Exception:
+                    log.exception("scan_failed file=%s", scan_safe_name)
+                    stream.error(
+                        "Scan failed. The file may be encrypted or malformed.",
+                    )
+                    scan_findings = []
+                finally:
+                    with suppress(Exception):
+                        temp_path.unlink(missing_ok=True)
+
+                scan_elapsed_seconds = time.perf_counter() - scan_started_at
+                status_ctx.update(
+                    label=f"Scan complete in {scan_elapsed_seconds:.1f}s",
+                    state="complete",
+                )
+                progress_bar.progress(100)
+
+            scan_report_path = reports_dir / f"{scan_safe_name}.json"
+            to_json(scan_findings, scan_report_path)
+
+        # -------------------------------------------------------------------------
+        # Shared UI for results
+        # -------------------------------------------------------------------------
 
         detector_counts = Counter(finding.detector for finding in scan_findings)
 
@@ -419,9 +487,9 @@ try:
         )
 
 # =============================================================================
-# 🚨 DEBUGGING WRAPPER END 🚨
+# 🚨 STABILITY WRAPPER END 🚨
 # =============================================================================
 except Exception as e:
     stream.error("🔴 Fatal Runtime Error Detected!")
     stream.exception(e)
-    # stream.stop() # Commented out stream.stop() to potentially allow further interaction
+    # If the app loads but crashes internally, showing the error in the UI is best.

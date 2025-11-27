@@ -9,9 +9,10 @@ from typing import Any
 
 from .detectors import Finding, detect
 
-# 🚫 REMOVED: Top-level extractor imports
+# 🚫 Top-level extractor imports removed to force lazy loading and save memory
 
 SUPPORTED_SUFFIXES = {".txt", ".csv", ".pdf"}
+
 SUPPORTED_MIME_TYPES = {
     "text/plain",
     "text/csv",
@@ -24,12 +25,11 @@ ExtractorFunc = Callable[[Path], tuple[str, str]]
 def _pick_extractor(path: Path) -> ExtractorFunc | None:
     """Return the correct extractor function for a file, if supported."""
 
-    # ✅ CRITICAL FIX: Import extractors lazily to prevent global memory instability
+    # ✅ LAZY IMPORT FIX: Import extractors only when this function is run
     from .extractors import from_csv, from_pdf, from_txt
 
     suffix = path.suffix.lower()
 
-    # ... (rest of the function is the same)
     if suffix == ".txt":
         return from_txt
     if suffix == ".csv":
@@ -49,7 +49,7 @@ def _pick_extractor(path: Path) -> ExtractorFunc | None:
 
 
 def read_any(path: Path) -> str:
-    # ... (same)
+    """Return text content from a supported file type."""
     extractor = _pick_extractor(path)
     if extractor is None:
         raise ValueError(f"Unsupported or unknown file type: {path}")
@@ -63,7 +63,7 @@ def scan_file(
     *,
     options: dict[str, Any] | None = None,
 ) -> list[Finding]:
-    # ... (same)
+    """Scan a file by extracting text and running detectors."""
     path = Path(input_path)
 
     try:
