@@ -9,8 +9,6 @@ from typing import Any
 
 from .detectors import Finding, detect
 
-# 🚫 Top-level extractor imports removed to force lazy loading and save memory
-
 SUPPORTED_SUFFIXES = {".txt", ".csv", ".pdf"}
 
 SUPPORTED_MIME_TYPES = {
@@ -25,7 +23,6 @@ ExtractorFunc = Callable[[Path], tuple[str, str]]
 def _pick_extractor(path: Path) -> ExtractorFunc | None:
     """Return the correct extractor function for a file, if supported."""
 
-    # ✅ LAZY IMPORT FIX: Import extractors only when this function is run
     from .extractors import from_csv, from_pdf, from_txt
 
     suffix = path.suffix.lower()

@@ -1,39 +1,23 @@
-"""Vaulty Streamlit App (locally run DLP scanner UI).
-
-This UI is designed for non-technical users:
-
-1. Upload a TXT / CSV / PDF file.
-2. Vaulty scans the file locally (no network calls).
-3. The app shows a high-level summary and lets users download a JSON report.
-
-Privacy:
-    - No raw PII is shown in the UI.
-    - All processing happens on the local machine.
-    - JSON reports are written to data/reports/ only.
-"""
+"""Vaulty Streamlit App (locally run DLP scanner UI)."""
 
 from __future__ import annotations
 
 import base64
-import gc  # 💡 NEW: Import the garbage collector for memory management
-import mimetypes
+import gc
 import time
-from collections import Counter
 from contextlib import suppress
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any
 
 import streamlit as stream
 
-# from PIL import Image # Removed as it's no longer needed for favicon
-# ✅ MODULE STABILITY: Imports are back at the top to resolve the low-level crash
+# Core imports
 from vaulty.detectors import Finding
 from vaulty.reporting import human_summary, to_json
 from vaulty.scanner import scan_file
 from vaulty.utils import get_logger, safe_filename
 
-# --- Caching Function Definition (CRITICAL FIX) ---
+# --- Caching Functions ---
 
 
 @stream.cache_resource
@@ -47,161 +31,112 @@ def load_and_encode_logo(logo_path: Path) -> str | None:
     return None
 
 
-# 💡 NEW: Cache the logger initialization to prevent resource leaks/re-init on reruns
-
-
 @stream.cache_resource
 def get_cached_logger(name: str):
     """Initializes and caches the logger."""
     return get_logger(name)
 
 
-# =============================================================================
-# Page setup and global styling
-# =============================================================================
+# --- Main Application Logic Wrapped in a Function ---
 
 
-base_dir = Path(__file__).resolve().parent
-page_icon: Any = "🔒"
-
-stream.set_page_config(
-    page_title="Vaulty - DLP Scanner",
-    page_icon=page_icon,
-    layout="wide",
-)
-
-# Initialize logger using the cached version
-log = get_cached_logger("vaulty")
-
-css_path = base_dir / "static" / "style.css"
-if css_path.exists():
-    stream.markdown(
-        f"<style>{css_path.read_text()}</style>",
-        unsafe_allow_html=True,
-    )
-else:
-    stream.warning(
-        "⚠️ Missing static/style.css — using default Streamlit theme.",
+def main():
+    # 1. Page Config
+    stream.set_page_config(
+        page_title="Vaulty - DLP Scanner",
+        page_icon="🔒",
+        layout="wide",
     )
 
-# =============================================================================
-# Logo handling (shared between header and sidebar)
-# =============================================================================
+    # 2. Logger & Styles
+    log = get_cached_logger("vaulty")
+    base_dir = Path(__file__).resolve().parent
 
-logo_path = base_dir / "static" / "image" / "Vaulty Logo.svg"
-encoded_logo_svg = load_and_encode_logo(logo_path)
-
-if not encoded_logo_svg:
-    stream.warning("⚠️ Logo file not found in static/image/.")
-
-if encoded_logo_svg:
-    stream.markdown(
-        f"""
-<div style="text-align:center; margin-top:10px; margin-bottom:10px;">
-  <img src="data:image/svg+xml;base64,{encoded_logo_svg}" alt="Vaulty Logo"
-       style="
-         width:320px;
-         max-width:95%;
-         height:auto;
-         filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.10));
-       ">
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-stream.markdown(
-    '<div class="vaulty-title">' "Vaulty 🔒 — Data Loss Prevention File Scanner" "</div>",
-    unsafe_allow_html=True,
-)
-stream.markdown(
-    '<div class="vaulty-subnav">Scan · Detect · Protect</div>',
-    unsafe_allow_html=True,
-)
-
-# =============================================================================
-# Sidebar: logo + recent scans for this session
-# =============================================================================
-
-with stream.sidebar:
-    if encoded_logo_svg:
+    css_path = base_dir / "static" / "style.css"
+    if css_path.exists():
         stream.markdown(
-            f"""
-<div style="text-align:center; margin-top:10px; margin-bottom:20px;">
-  <img src="data:image/svg+xml;base64,{encoded_logo_svg}" alt="Vaulty Logo"
-       style="
-         width:440px;
-         max-width:90%;
-         height:auto;
-         filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.15));
-       ">
-</div>
-            """,
+            f"<style>{css_path.read_text()}</style>",
             unsafe_allow_html=True,
         )
-    else:
-        stream.warning("⚠️ Logo file not found in static/image/.")
 
-    stream.header("Recent scans")
-    recent_scan_items = stream.session_state.get("recent_scans", [])
-    if not recent_scan_items:
-        stream.caption("No scans yet.")
-    else:
-        for scan_entry in recent_scan_items[-10:][::-1]:
-            stream.write(
-                "• "
-                f"`{scan_entry['name']}` — "
-                f"{scan_entry['elapsed']:.1f}s, "
-                f"{scan_entry['count']} finding(s)",
-            )
+    # 3. Logo Handling
+    logo_path = base_dir / "static" / "image" / "Vaulty Logo.svg"
+    encoded_logo_svg = load_and_encode_logo(logo_path)
 
-# =============================================================================
-# 🚨 STABILITY WRAPPER START 🚨
-# Everything below this point is wrapped in a try/except to catch runtime issues.
-# =============================================================================
-try:
+    if encoded_logo_svg:
+        # Split long style string to satisfy linter
+        img_style = (
+            "width:320px; max-width:95%; height:auto; "
+            "filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.10));"
+        )
+        logo_html = f"""
+        <div style="text-align:center; margin-top:10px; margin-bottom:10px;">
+          <img src="data:image/svg+xml;base64,{encoded_logo_svg}" alt="Vaulty Logo"
+               style="{img_style}">
+        </div>
+        """
+        stream.markdown(logo_html, unsafe_allow_html=True)
+        with stream.sidebar:
+            stream.markdown(logo_html, unsafe_allow_html=True)
 
-    # =============================================================================
-    # One-time privacy / onboarding notice
-    # =============================================================================
+    stream.markdown(
+        '<div class="vaulty-title">' "Vaulty 🔒 — Data Loss Prevention File Scanner</div>",
+        unsafe_allow_html=True,
+    )
+    stream.markdown(
+        '<div class="vaulty-subnav">Scan · Detect · Protect</div>',
+        unsafe_allow_html=True,
+    )
 
+    # 4. Sidebar Recent Scans
+    with stream.sidebar:
+        stream.header("Recent scans")
+        recent_scan_items = stream.session_state.get("recent_scans", [])
+        if not recent_scan_items:
+            stream.caption("No scans yet.")
+        else:
+            for scan_entry in recent_scan_items[-10:][::-1]:
+                stream.write(
+                    f"• `{scan_entry['name']}` — "
+                    f"{scan_entry['elapsed']:.1f}s, "
+                    f"{scan_entry['count']} finding(s)"
+                )
+
+    # 5. Session State Init
     if "onboarded" not in stream.session_state:
         stream.session_state.onboarded = False
+    if "uploader_key" not in stream.session_state:
+        stream.session_state.uploader_key = 0
 
-    onboarding_placeholder = stream.empty()
+    # 6. Onboarding / Main UI
     if not stream.session_state.get("onboarded", False):
-        with onboarding_placeholder.container(border=True):
+        with stream.container(border=True):
             stream.subheader("Welcome to Vaulty 🔒")
             stream.write(
-                "All scans are performed **locally**. " "No files or results leave your device.",
+                "All scans are performed **locally**. " "No files or results leave your device."
             )
-            stream.write(
-                "You can adjust detection via **Scan options ⚙️** below.",
-            )
+            stream.write("You can adjust detection via **Scan options ⚙️** below.")
             if stream.button("Got it", type="primary", key="welcome_ok"):
                 stream.session_state.onboarded = True
-                onboarding_placeholder.empty()
                 stream.rerun()
+        # Return here so we don't render the rest of the app until onboarded
+        return
 
-    # =============================================================================
-    # Scan options (UI-only toggles for now)
-    # =============================================================================
-
+    # 7. Scan Options
     scan_options = stream.session_state.setdefault(
         "options",
         {"anonymize": True, "include_ipv4": False, "include_phone": True},
     )
 
-    def render_scan_options() -> None:
-        """Render the scan options controls (UI-only for now)."""
+    with stream.expander("Scan options ⚙️"):
         stream.caption("Adjust what Vaulty looks for (local-only).")
         scan_options["anonymize"] = stream.toggle(
-            "Anonymize any sample snippets (future redaction mode)",
+            "Anonymize any sample snippets",
             value=scan_options["anonymize"],
             key="opt_anon",
         )
         scan_options["include_ipv4"] = stream.toggle(
-            "Detect IPv4 addresses (future rule set)",
+            "Detect IPv4 addresses",
             value=scan_options["include_ipv4"],
             key="opt_ipv4",
         )
@@ -211,61 +146,31 @@ try:
             key="opt_phone",
         )
 
-    if hasattr(stream, "popover"):
-        try:
-            with stream.popover(
-                "Scan options ⚙️",
-                use_container_width=True,
-            ):
-                render_scan_options()
-        except TypeError:
-            with stream.popover("Scan options ⚙️"):
-                render_scan_options()
-    else:
-        with stream.expander("Scan options ⚙️"):
-            render_scan_options()
-
-    # =============================================================================
-    # File uploader card + clear state
-    # =============================================================================
-
-    if "uploader_key" not in stream.session_state:
-        stream.session_state.uploader_key = 0
-
-    def handle_clear_file():
-        """Clears the file uploader and forces garbage collection."""
-        stream.session_state.uploader_key += 1
-        stream.toast("Cleared.", icon="🧹")
-        gc.collect()  # 💡 NEW: Force GC when clearing the state
-        stream.rerun()
-
+    # 8. File Uploader
     with stream.container():
-        stream.markdown('<div class="vaulty-card">', unsafe_allow_html=True)
-        stream.markdown('<div class="uicon">⬆️</div>', unsafe_allow_html=True)
         stream.markdown(
+            '<div class="vaulty-card"><div class="uicon">⬆️</div>'
             '<div class="uhelp">Upload a TXT, CSV, or PDF file (≤ 5 MB)</div>',
             unsafe_allow_html=True,
         )
 
         uploaded_file = stream.file_uploader(
-            "Upload a TXT, CSV, or PDF file (5 MB or less).",
+            "Upload a TXT, CSV, or PDF file",
             type=["txt", "csv", "pdf"],
             key=f"uploader_{stream.session_state.uploader_key}",
             label_visibility="collapsed",
         )
 
-        col_left, col_scan, col_spacer, col_clear, col_right = stream.columns(
-            [1, 1, 0.5, 1, 1],
-        )
-        with col_scan:
-            scan_button_clicked = stream.button(
+        col1, col2 = stream.columns([1, 1])
+        with col1:
+            scan_clicked = stream.button(
                 "Scan Now",
                 type="primary",
                 use_container_width=True,
                 key="btn_scan",
             )
-        with col_clear:
-            clear_button_clicked = stream.button(
+        with col2:
+            clear_clicked = stream.button(
                 "Clear File",
                 use_container_width=True,
                 key="btn_clear",
@@ -273,250 +178,132 @@ try:
 
         stream.markdown("</div>", unsafe_allow_html=True)
 
-    if clear_button_clicked:
-        handle_clear_file()  # Use the new handler function
+    if clear_clicked:
+        stream.session_state.uploader_key += 1
+        stream.toast("Cleared.", icon="🧹")
+        gc.collect()
+        stream.rerun()
 
-    # =============================================================================
-    # Demo mode toggle (uses real Finding objects, no real file)
-    # =============================================================================
-
+    # 9. Demo Mode
     demo_mode_enabled = stream.toggle(
         "💡 Demo Mode",
         value=False,
-        help="Preview the UI with dummy scan data (no real file scan).",
+        help="Preview the UI with dummy scan data.",
     )
-
     if demo_mode_enabled:
         stream.toast("Running Vaulty in demo mode (no real scan).", icon="🧩")
 
-    # Prepare variables for later UI use so type checkers are happy.
-    scan_findings: list[Finding] = []
-    scan_elapsed_seconds: float = 0.0
-    scan_safe_name: str = "scan"
-    scan_report_path: Path | None = None
+    # 10. Scan Logic
+    scan_findings = []
+    scan_elapsed_seconds = 0.0
+    scan_safe_name = "scan"
 
-    # =============================================================================
-    # Scan engine (real or demo)
-    # =============================================================================
-
-    if (uploaded_file and scan_button_clicked) or demo_mode_enabled:
+    if (uploaded_file and scan_clicked) or demo_mode_enabled:
         reports_dir = Path("data/reports")
         reports_dir.mkdir(parents=True, exist_ok=True)
 
         if demo_mode_enabled:
-            # Demo mode: fabricate a few realistic findings using the real model.
+            # Demo Logic
             scan_safe_name = "demo_file.txt"
             scan_elapsed_seconds = 1.23
             scan_findings = [
+                Finding("email", "user@example.com", 10, 26, 2.0, "base=2.0"),
+                Finding("ssn_us", "123-45-6789", 40, 51, 4.0, "base=4.0"),
                 Finding(
-                    detector="email",
-                    match="user@example.com",
-                    start=10,
-                    end=26,
-                    risk_score=2.0,
-                    why="base=2.0 + context_boost=0.0",
-                ),
-                Finding(
-                    detector="ssn_us",
-                    match="123-45-6789",
-                    start=40,
-                    end=51,
-                    risk_score=4.0,
-                    why="base=4.0 + context_boost=0.0",
-                ),
-                Finding(
-                    detector="credit_card",
-                    match="4111 1111 1111 1111",
-                    start=80,
-                    end=99,
-                    risk_score=4.5,
-                    why="base=4.0 + context_boost=0.5",
+                    "credit_card",
+                    "4111 1111 1111 1111",
+                    80,
+                    99,
+                    4.5,
+                    "base=4.0+boost",
                 ),
             ]
             scan_report_path = reports_dir / f"{scan_safe_name}.json"
             to_json(scan_findings, scan_report_path)
 
         else:
-            # --- Real Scan Logic ---
-            # log is already initialized as a cached resource
+            # Real File Scan
+            try:
+                # File Size Check
+                file_bytes = uploaded_file.getvalue()
+                if len(file_bytes) > 5 * 1024 * 1024:
+                    stream.error("File too large (>5MB).")
+                    stream.stop()
 
-            max_megabytes = 5
-            max_bytes = max_megabytes * 1024 * 1024
-            file_bytes = uploaded_file.read()
+                scan_safe_name = safe_filename(uploaded_file.name)
 
-            if len(file_bytes) > max_bytes:
-                stream.error(
-                    "File too large. " f"Please upload a file under {max_megabytes} MB.",
-                )
-                stream.toast("That file exceeds the size limit.", icon="⚠️")
-                stream.stop()
+                with stream.status("Scanning...", expanded=True):
+                    start_time = time.perf_counter()
 
-            allowed_mime_types = {
-                "text/plain",
-                "text/csv",
-                "application/pdf",
-            }
-            mime_type, _ = mimetypes.guess_type(uploaded_file.name or "")
-            if mime_type not in allowed_mime_types:
-                stream.error("Unsupported file type.")
-                stream.stop()
+                    # Save to temp file
+                    suffix = Path(uploaded_file.name).suffix
+                    tmp_path = None
+                    try:
+                        with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                            tmp.write(file_bytes)
+                            tmp_path = Path(tmp.name)
 
-            scan_safe_name = safe_filename(uploaded_file.name or "upload")
+                        # RUN SCAN
+                        scan_findings = scan_file(tmp_path)
 
-            temp_path = None  # Initialize outside try/except
+                    except Exception as e:
+                        log.exception("Scan failed")
+                        stream.error(f"Scan failed: {e}")
+                        scan_findings = []
+                    finally:
+                        if tmp_path:
+                            with suppress(Exception):
+                                tmp_path.unlink()
+                        gc.collect()  # Force cleanup immediately
 
-            with stream.status("Preparing to scan…", expanded=True) as status_ctx:
-                scan_started_at = time.perf_counter()
+                    scan_elapsed_seconds = time.perf_counter() - start_time
 
-                stream.write("• Saving upload to a secure temp file")
+                scan_report_path = reports_dir / f"{scan_safe_name}.json"
+                to_json(scan_findings, scan_report_path)
 
-                # 🔧 preserve original suffix so scanner picks extractor
-                original_suffix = Path(uploaded_file.name or "upload").suffix
-                try:
-                    with NamedTemporaryFile(
-                        delete=False,
-                        suffix=original_suffix,
-                    ) as temp_file:
-                        temp_file.write(file_bytes)
-                        temp_path = Path(temp_file.name)
+            except Exception as e:
+                stream.error(f"Critical error: {e}")
 
-                    progress_bar = stream.progress(0)
-                    stream.write("• Extracting text & running detectors")
-                    progress_bar.progress(30)
+        # 11. Results Display
 
-                    scan_findings = scan_file(temp_path)
-
-                except Exception as e:
-                    log.exception("scan_failed file=%s", scan_safe_name)
-                    stream.error(
-                        f"Scan failed. The file may be encrypted or malformed. Error: {e}",
-                    )
-                    scan_findings = []
-                finally:
-                    # Clean up the temp file
-                    if temp_path:
-                        with suppress(Exception):
-                            temp_path.unlink(missing_ok=True)
-
-                    # 💡 NEW: Aggressive memory cleanup after the heavy work!
-                    # This is the most crucial memory stabilization step.
-                    gc.collect()
-
-                scan_elapsed_seconds = time.perf_counter() - scan_started_at
-                status_ctx.update(
-                    label=f"Scan complete in {scan_elapsed_seconds:.1f}s",
-                    state="complete",
-                )
-                progress_bar.progress(100)
-
-            scan_report_path = reports_dir / f"{scan_safe_name}.json"
-            to_json(scan_findings, scan_report_path)
-
-        # -------------------------------------------------------------------------
-        # Shared UI for results
-        # -------------------------------------------------------------------------
-
-        detector_counts = Counter(finding.detector for finding in scan_findings)
-
-        recent_scan_items = stream.session_state.setdefault("recent_scans", [])
-        recent_scan_items.append(
+        # Update Recent Scans
+        recent = stream.session_state.setdefault("recent_scans", [])
+        recent.append(
             {
                 "name": scan_safe_name,
                 "elapsed": scan_elapsed_seconds,
                 "count": len(scan_findings),
-            },
+            }
         )
-        if len(recent_scan_items) > 10:
-            del recent_scan_items[:-10]
+        if len(recent) > 10:
+            del recent[:-10]
 
-        # 💡 NEW: Aggressive memory cleanup after the UI state update
-        gc.collect()
+        # Tabs
+        tab_res, tab_find, tab_rep = stream.tabs(["Results", "Findings", "Report"])
 
-        tab_results, tab_findings, tab_report = stream.tabs(
-            ["Results", "Findings", "Report"],
-        )
-
-        with tab_results:
+        with tab_res:
             stream.subheader("Results")
             stream.code(human_summary(scan_findings))
 
-        with tab_findings:
-            stream.markdown("### Findings Summary")
-            stream.markdown(
-                f"""
-                <div class="findings-wrap">
-                <div class="frow">
-                    <div class="badge">
-                    <span class="pill email">✉︎</span> Email
-                    </div>
-                    <div class="count">
-                    {detector_counts.get('email', 0)}
-                    </div>
-                </div>
-                <div class="frow">
-                    <div class="badge">
-                    <span class="pill ssn">◎</span> SSN (US)
-                    </div>
-                    <div class="count">
-                    {detector_counts.get('ssn_us', 0)}
-                    </div>
-                </div>
-                <div class="frow">
-                    <div class="badge">
-                    <span class="pill card">■</span> Credit Card
-                    </div>
-                    <div class="count">
-                    {detector_counts.get('credit_card', 0)}
-                    </div>
-                </div>
-                <div class="frow">
-                    <div class="badge">
-                    <span class="pill phone">☎︎</span> Phone
-                    </div>
-                    <div class="count">
-                    {detector_counts.get('phone', 0)}
-                    </div>
-                </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+        with tab_find:
+            for f in scan_findings:
+                stream.json(f.to_dict())
 
-        with tab_report:
-            if scan_findings and scan_report_path is not None:
+        with tab_rep:
+            if scan_findings and scan_report_path:
+                # Use updated reporting function if possible, or read bytes
                 stream.download_button(
                     "⬇️ Download JSON Report",
                     data=scan_report_path.read_bytes(),
-                    file_name=scan_report_path.name,
+                    file_name=f"{scan_safe_name}.json",
                     mime="application/json",
                     use_container_width=True,
-                    key="btn_download",
-                )
-                stream.toast(
-                    "Report ready. Stored only on your device.",
-                    icon="✅",
                 )
             else:
-                stream.info("No findings — nothing to report this time 🎉")
+                stream.info("No findings.")
 
-        stream.markdown(
-            f'<div class="status-ok"><span class="checkbox"></span>'
-            f" Scan completed in {scan_elapsed_seconds:.1f} seconds — "
-            "No raw PII displayed.</div>",
-            unsafe_allow_html=True,
-        )
-        stream.markdown(
-            '<div class="privacy" style="max-width:600px;'
-            'margin:8px auto 0 auto;">'
-            "All scans processed locally — no data leaves your device."
-            "</div>",
-            unsafe_allow_html=True,
-        )
+        gc.collect()
 
-# =============================================================================
-# 🚨 STABILITY WRAPPER END 🚨
-# =============================================================================
-except Exception as e:
-    stream.error("🔴 Fatal Runtime Error Detected!")
-    stream.exception(e)
-    # If the app loads but crashes internally, showing the error in the UI is best.
+
+if __name__ == "__main__":
+    main()
