@@ -24,27 +24,15 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 import streamlit as stream
-from PIL import Image
 
+# from PIL import Image # Removed as it's no longer needed for favicon
 from vaulty.detectors import Finding
 from vaulty.reporting import human_summary, to_json
 from vaulty.scanner import scan_file
 from vaulty.utils import get_logger, safe_filename
 
-# --- Caching Function Definition (Place this near the top with imports) ---
-
-
-@stream.cache_resource
-def load_static_image(path: Path):
-    """Load a static image resource once and cache the result."""
-    if path.exists():
-        try:
-            # Use PIL to open the image
-            return Image.open(path)
-        except Exception:
-            # Return an emoji fallback if loading fails
-            return "🔒"
-    return "🔒"
+# 🗑️ REMOVED: The @stream.cache_resource load_static_image function is removed
+#             to eliminate the MediaFileHandler KeyError bug.
 
 
 # =============================================================================
@@ -52,19 +40,7 @@ def load_static_image(path: Path):
 # =============================================================================
 
 base_dir = Path(__file__).resolve().parent
-favicon_path = base_dir / "static" / "image" / "vaulty_favicon.png"
-
-# 🛑 CRITICAL CHANGE: Assign the result of the cached function call
-page_icon: Any = load_static_image(favicon_path)
-
-# 🗑️ DELETE THE ORIGINAL LOADING BLOCK!
-# You should remove the entire block below, as it is replaced by the cached function:
-# if favicon_path.exists():
-#     try:
-#         page_icon = Image.open(favicon_path)
-#     except Exception:
-#         # Fall back to emoji if icon fails to load
-#         page_icon = "🔒"
+page_icon: Any = "🔒"
 
 stream.set_page_config(
     page_title="Vaulty - DLP Scanner",
@@ -134,7 +110,7 @@ with stream.sidebar:
   <img src="data:image/svg+xml;base64,{encoded_logo_svg}" alt="Vaulty Logo"
        style="
          width:440px;
-         max-width:90%;
+         max_width:90%;
          height:auto;
          filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.15));
        ">
