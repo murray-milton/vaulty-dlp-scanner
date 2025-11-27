@@ -31,7 +31,7 @@ from vaulty.reporting import human_summary, to_json
 from vaulty.scanner import scan_file
 from vaulty.utils import get_logger, safe_filename
 
-# --- At the beginning of the file, define a cached function ---
+# --- Caching Function Definition (Place this near the top with imports) ---
 
 
 @stream.cache_resource
@@ -39,6 +39,7 @@ def load_static_image(path: Path):
     """Load a static image resource once and cache the result."""
     if path.exists():
         try:
+            # Use PIL to open the image
             return Image.open(path)
         except Exception:
             # Return an emoji fallback if loading fails
@@ -50,17 +51,20 @@ def load_static_image(path: Path):
 # Page setup and global styling
 # =============================================================================
 
-
 base_dir = Path(__file__).resolve().parent
 favicon_path = base_dir / "static" / "image" / "vaulty_favicon.png"
 
-page_icon: Any = "🔒"
-if favicon_path.exists():
-    try:
-        page_icon = Image.open(favicon_path)
-    except Exception:
-        # Fall back to emoji if icon fails to load
-        page_icon = "🔒"
+# 🛑 CRITICAL CHANGE: Assign the result of the cached function call
+page_icon: Any = load_static_image(favicon_path)
+
+# 🗑️ DELETE THE ORIGINAL LOADING BLOCK!
+# You should remove the entire block below, as it is replaced by the cached function:
+# if favicon_path.exists():
+#     try:
+#         page_icon = Image.open(favicon_path)
+#     except Exception:
+#         # Fall back to emoji if icon fails to load
+#         page_icon = "🔒"
 
 stream.set_page_config(
     page_title="Vaulty - DLP Scanner",
