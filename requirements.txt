@@ -8,6 +8,7 @@ numpy==2.3.4
 pandas==2.3.3
 pdfminer.six==20250506
 pillow==11.3.0
+protobuf==5.27.0
 pyarrow==22.0.0
 pydeck==0.9.1
 Pygments==2.19.2
@@ -27,5 +28,3 @@ typing_extensions==4.15.0
 tzdata==2025.2
 urllib3==2.5.0
 watchdog==6.0.0
-# Add or ensure this line is present in requirements.txt
-protobuf==5.27.0
