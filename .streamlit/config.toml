@@ -1,7 +1,6 @@
 # .streamlit/config.toml
 
-[server]
-fileWatcherType = "none"
+
 
 
 [theme]
