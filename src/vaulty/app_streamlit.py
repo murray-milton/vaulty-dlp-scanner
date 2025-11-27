@@ -31,7 +31,9 @@ from vaulty.reporting import human_summary, to_json
 from vaulty.scanner import scan_file
 from vaulty.utils import get_logger, safe_filename
 
-# --- Caching Function Definition (CRITICAL FIX) ---
+# =============================================================================
+# Caching for Stability
+# =============================================================================
 
 
 @stream.cache_resource
@@ -39,7 +41,6 @@ def load_and_encode_logo(logo_path: Path) -> str | None:
     """Load the logo and return the base64 encoded string once, safely."""
     if logo_path.exists():
         try:
-            # Read the bytes and encode them
             return base64.b64encode(logo_path.read_bytes()).decode("utf-8")
         except Exception:
             return None
@@ -59,7 +60,8 @@ stream.set_page_config(
     layout="wide",
 )
 
-log = get_logger("vaulty")
+# ⚠️ CRITICAL FIX: The logger is NOT initialized globally here.
+# It is initialized inside the scan block (lazy initialization) to prevent crashes on rerun.
 
 css_path = base_dir / "static" / "style.css"
 if css_path.exists():
@@ -78,7 +80,7 @@ else:
 
 logo_path = base_dir / "static" / "image" / "Vaulty Logo.svg"
 
-# ✅ Use the cached function here:
+# Use the cached function here:
 encoded_logo_svg = load_and_encode_logo(logo_path)
 
 if not encoded_logo_svg:
@@ -281,6 +283,10 @@ scan_report_path: Path | None = None
 # =============================================================================
 
 if (uploaded_file and scan_button_clicked) or demo_mode_enabled:
+    # ✅ LAZY LOGGER INITIALIZATION FIX: Initialize the logger here
+    # where the scan is actually triggered.
+    log = get_logger("vaulty")
+
     reports_dir = Path("data/reports")
     reports_dir.mkdir(parents=True, exist_ok=True)
 
@@ -362,6 +368,7 @@ if (uploaded_file and scan_button_clicked) or demo_mode_enabled:
             try:
                 scan_findings = scan_file(temp_path)
             except Exception:
+                # Logger used here is now safely initialized above
                 log.exception("scan_failed file=%s", scan_safe_name)
                 stream.error(
                     "Scan failed. The file may be encrypted or malformed.",
