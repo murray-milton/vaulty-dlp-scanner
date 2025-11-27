@@ -21,3 +21,6 @@ def test_credit_card_valid_passes() -> None:
 
 def test_empty_text_is_safe() -> None:
     assert detect("") == []
+
+
+# Developer Notes and revisions
