@@ -31,9 +31,25 @@ from vaulty.reporting import human_summary, to_json
 from vaulty.scanner import scan_file
 from vaulty.utils import get_logger, safe_filename
 
+# --- At the beginning of the file, define a cached function ---
+
+
+@stream.cache_resource
+def load_static_image(path: Path):
+    """Load a static image resource once and cache the result."""
+    if path.exists():
+        try:
+            return Image.open(path)
+        except Exception:
+            # Return an emoji fallback if loading fails
+            return "🔒"
+    return "🔒"
+
+
 # =============================================================================
 # Page setup and global styling
 # =============================================================================
+
 
 base_dir = Path(__file__).resolve().parent
 favicon_path = base_dir / "static" / "image" / "vaulty_favicon.png"
