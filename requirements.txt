@@ -27,3 +27,5 @@ typing_extensions==4.15.0
 tzdata==2025.2
 urllib3==2.5.0
 watchdog==6.0.0
+# Add or ensure this line is present in requirements.txt
+protobuf==5.27.0

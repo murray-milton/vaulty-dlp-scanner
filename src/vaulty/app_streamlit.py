@@ -15,6 +15,7 @@ Privacy:
 from __future__ import annotations
 
 import base64
+import gc  # 💡 NEW: Import the garbage collector for memory management
 import mimetypes
 import time
 from collections import Counter
@@ -46,6 +47,15 @@ def load_and_encode_logo(logo_path: Path) -> str | None:
     return None
 
 
+# 💡 NEW: Cache the logger initialization to prevent resource leaks/re-init on reruns
+
+
+@stream.cache_resource
+def get_cached_logger(name: str):
+    """Initializes and caches the logger."""
+    return get_logger(name)
+
+
 # =============================================================================
 # Page setup and global styling
 # =============================================================================
@@ -60,8 +70,8 @@ stream.set_page_config(
     layout="wide",
 )
 
-# Logger is now initialized lazily inside the scan block.
-# log = get_logger("vaulty")
+# Initialize logger using the cached version
+log = get_cached_logger("vaulty")
 
 css_path = base_dir / "static" / "style.css"
 if css_path.exists():
@@ -222,6 +232,13 @@ try:
     if "uploader_key" not in stream.session_state:
         stream.session_state.uploader_key = 0
 
+    def handle_clear_file():
+        """Clears the file uploader and forces garbage collection."""
+        stream.session_state.uploader_key += 1
+        stream.toast("Cleared.", icon="🧹")
+        gc.collect()  # 💡 NEW: Force GC when clearing the state
+        stream.rerun()
+
     with stream.container():
         stream.markdown('<div class="vaulty-card">', unsafe_allow_html=True)
         stream.markdown('<div class="uicon">⬆️</div>', unsafe_allow_html=True)
@@ -257,9 +274,7 @@ try:
         stream.markdown("</div>", unsafe_allow_html=True)
 
     if clear_button_clicked:
-        stream.session_state.uploader_key += 1
-        stream.toast("Cleared.", icon="🧹")
-        stream.rerun()
+        handle_clear_file()  # Use the new handler function
 
     # =============================================================================
     # Demo mode toggle (uses real Finding objects, no real file)
@@ -323,7 +338,7 @@ try:
 
         else:
             # --- Real Scan Logic ---
-            log = get_logger("vaulty")  # Initialize logger lazily
+            # log is already initialized as a cached resource
 
             max_megabytes = 5
             max_bytes = max_megabytes * 1024 * 1024
@@ -348,6 +363,8 @@ try:
 
             scan_safe_name = safe_filename(uploaded_file.name or "upload")
 
+            temp_path = None  # Initialize outside try/except
+
             with stream.status("Preparing to scan…", expanded=True) as status_ctx:
                 scan_started_at = time.perf_counter()
 
@@ -355,28 +372,35 @@ try:
 
                 # 🔧 preserve original suffix so scanner picks extractor
                 original_suffix = Path(uploaded_file.name or "upload").suffix
-                with NamedTemporaryFile(
-                    delete=False,
-                    suffix=original_suffix,
-                ) as temp_file:
-                    temp_file.write(file_bytes)
-                    temp_path = Path(temp_file.name)
-
-                progress_bar = stream.progress(0)
-                stream.write("• Extracting text & running detectors")
-                progress_bar.progress(30)
-
                 try:
+                    with NamedTemporaryFile(
+                        delete=False,
+                        suffix=original_suffix,
+                    ) as temp_file:
+                        temp_file.write(file_bytes)
+                        temp_path = Path(temp_file.name)
+
+                    progress_bar = stream.progress(0)
+                    stream.write("• Extracting text & running detectors")
+                    progress_bar.progress(30)
+
                     scan_findings = scan_file(temp_path)
-                except Exception:
+
+                except Exception as e:
                     log.exception("scan_failed file=%s", scan_safe_name)
                     stream.error(
-                        "Scan failed. The file may be encrypted or malformed.",
+                        f"Scan failed. The file may be encrypted or malformed. Error: {e}",
                     )
                     scan_findings = []
                 finally:
-                    with suppress(Exception):
-                        temp_path.unlink(missing_ok=True)
+                    # Clean up the temp file
+                    if temp_path:
+                        with suppress(Exception):
+                            temp_path.unlink(missing_ok=True)
+
+                    # 💡 NEW: Aggressive memory cleanup after the heavy work!
+                    # This is the most crucial memory stabilization step.
+                    gc.collect()
 
                 scan_elapsed_seconds = time.perf_counter() - scan_started_at
                 status_ctx.update(
@@ -404,6 +428,9 @@ try:
         )
         if len(recent_scan_items) > 10:
             del recent_scan_items[:-10]
+
+        # 💡 NEW: Aggressive memory cleanup after the UI state update
+        gc.collect()
 
         tab_results, tab_findings, tab_report = stream.tabs(
             ["Results", "Findings", "Report"],
