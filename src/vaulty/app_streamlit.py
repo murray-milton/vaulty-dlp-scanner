@@ -31,8 +31,19 @@ from vaulty.reporting import human_summary, to_json
 from vaulty.scanner import scan_file
 from vaulty.utils import get_logger, safe_filename
 
-# 🗑️ REMOVED: The @stream.cache_resource load_static_image function is removed
-#             to eliminate the MediaFileHandler KeyError bug.
+# --- Caching Function Definition (CRITICAL FIX) ---
+
+
+@stream.cache_resource
+def load_and_encode_logo(logo_path: Path) -> str | None:
+    """Load the logo and return the base64 encoded string once, safely."""
+    if logo_path.exists():
+        try:
+            # Read the bytes and encode them
+            return base64.b64encode(logo_path.read_bytes()).decode("utf-8")
+        except Exception:
+            return None
+    return None
 
 
 # =============================================================================
@@ -66,11 +77,11 @@ else:
 # =============================================================================
 
 logo_path = base_dir / "static" / "image" / "Vaulty Logo.svg"
-encoded_logo_svg: str | None
-if logo_path.exists():
-    encoded_logo_svg = base64.b64encode(logo_path.read_bytes()).decode("utf-8")
-else:
-    encoded_logo_svg = None
+
+# ✅ Use the cached function here:
+encoded_logo_svg = load_and_encode_logo(logo_path)
+
+if not encoded_logo_svg:
     stream.warning("⚠️ Logo file not found in static/image/.")
 
 if encoded_logo_svg:
@@ -110,7 +121,7 @@ with stream.sidebar:
   <img src="data:image/svg+xml;base64,{encoded_logo_svg}" alt="Vaulty Logo"
        style="
          width:440px;
-         max_width:90%;
+         max-width:90%;
          height:auto;
          filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.15));
        ">
