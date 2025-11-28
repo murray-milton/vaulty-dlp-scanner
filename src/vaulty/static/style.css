@@ -3,8 +3,9 @@
    Maintains the polished light UI look
    ========================================= */
 
-
-/* Mobile-specific adjustments */
+/* -------------------------------------------------------
+   1. Mobile-specific adjustments (The "Golden Rules")
+   ------------------------------------------------------- */
 @media (max-width: 640px) {
     /* Reduce the massive top padding Streamlit adds */
     .block-container {
@@ -22,12 +23,20 @@
     footer {
         display: none !important;
     }
+    
+    /* Ensure charts don't overflow */
+    canvas {
+        max-width: 100% !important;
+    }
 }
 
-
-/* App chrome */
+/* -------------------------------------------------------
+   2. App Chrome & Global Theme overrides
+   ------------------------------------------------------- */
+/* Force Light Mode Backgrounds */
 [data-testid="stAppViewContainer"] { background: #ffffff !important; }
 [data-testid="stHeader"] { background: transparent !important; }
+[data-testid="stSidebar"] { background-color: #f8f9fa !important; border-right: 1px solid rgba(0,0,0,0.05); }
 
 /* Title + subnav */
 .vaulty-title {
@@ -36,14 +45,22 @@
   letter-spacing: .1px;
   margin-top: 1rem !important;
   margin-bottom: .25rem !important;
+  text-align: center; /* Added to align with logo */
+  color: #111827;
 }
+
 .vaulty-subnav {
   color:#1f4fbc !important;
   font-size:20px;
   font-weight:700;
   margin-bottom: 1.5rem !important;
+  text-align: center; /* Added to align with logo */
 }
 .vaulty-subnav a { color:#1f4fbc !important; text-decoration:none; }
+
+/* -------------------------------------------------------
+   3. Component Styling
+   ------------------------------------------------------- */
 
 /* Card around the uploader */
 .vaulty-card {
@@ -67,21 +84,29 @@ div[data-testid="stFileUploadDropzone"] {
 }
 div[data-testid="stFileUploadDropzone"] * { color: #111827 !important; }
 
-/* Buttons row helper */
-.btnrow { display:flex; gap:12px; justify-content:center; margin-top: 16px; }
+/* Expanders (Scan Options) */
+div[data-testid="stExpander"] {
+    border: 1px solid rgba(0,0,0,.08) !important;
+    border-radius: 8px !important;
+    background-color: #ffffff !important;
+}
 
 /* Button polish */
 .stButton > button:hover { opacity: 0.92; transform: translateY(-1px); transition: all 0.12s ease-in-out; }
 .stButton > button:active { transform: translateY(0); opacity: .88; }
+
 button[kind="primary"] {
   background-color: #2563eb !important;
   color: #fff !important;
   border-radius: 6px !important;
   font-weight: 600 !important;
+  border: none !important;
 }
+
 button[kind="secondary"], div.stButton button {
   border-radius: 6px !important;
   font-weight: 500 !important;
+  border: 1px solid rgba(0,0,0,0.1) !important;
 }
 
 /* Accessible focus ring */
@@ -90,6 +115,10 @@ button[kind="secondary"], div.stButton button {
   outline-offset: 2px !important;
   box-shadow: none !important;
 }
+
+/* -------------------------------------------------------
+   4. Findings & Results Styling
+   ------------------------------------------------------- */
 
 /* Findings Summary card */
 .findings-wrap {
@@ -105,7 +134,7 @@ button[kind="secondary"], div.stButton button {
 .badge { display:flex; align-items:center; gap:10px; font-weight:600; }
 .count { text-align:right; font-weight:700; color:#111827; }
 
-/* Colored mini-badges */
+/* Colored mini-badges (For Findings) */
 .pill {
   width:18px; height:18px; display:inline-grid; place-items:center;
   border-radius:6px; color:#fff; font-size:12px; line-height:1;
@@ -125,27 +154,30 @@ button[kind="secondary"], div.stButton button {
   content:""; position:absolute; left:5px; top:2px; width:5px; height:9px;
   border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg);
 }
+
+/* Download Button Polish */
 .stDownloadButton button {
   background:#fff !important; color:#111827 !important;
   border:1px solid rgba(0,0,0,.15) !important; border-radius:10px !important;
   box-shadow:none !important; padding:8px 14px !important;
+  width: 100%;
+}
+.stDownloadButton button:hover {
+    background-color: #f9fafb !important;
+    border-color: #2563eb !important;
+    color: #2563eb !important;
 }
 
-/* Tweak code readability */
+/* -------------------------------------------------------
+   5. Utility & Code
+   ------------------------------------------------------- */
 pre, code { font-size: 0.95rem !important; }
 
-
-/* The Logo Image for Vaulty */
-.vaulty-logo {
-  display: block;
-  margin: 0 auto 15px auto;
-  width: 320px;
-  max-width: 95%;
-  height: auto;
-  filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.15));
+/* Metrics adjustments */
+[data-testid="stMetricValue"] {
+    font-size: 28px !important;
+    color: #111827 !important;
 }
-
-.sidebar .vaulty-logo {
-  width: 220px;
-  max-width: 85%;
+[data-testid="stMetricLabel"] {
+    color: #6b7280 !important;
 }
