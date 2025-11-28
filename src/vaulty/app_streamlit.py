@@ -14,7 +14,6 @@ import altair as alt
 import pandas as pd
 import streamlit as stream
 
-# Core imports
 from vaulty.detectors import Finding
 from vaulty.reporting import to_json
 from vaulty.scanner import scan_file

@@ -3,6 +3,28 @@
    Maintains the polished light UI look
    ========================================= */
 
+
+/* Mobile-specific adjustments */
+@media (max-width: 640px) {
+    /* Reduce the massive top padding Streamlit adds */
+    .block-container {
+        padding-top: 2rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    
+    /* Make the title smaller on mobile so it doesn't wrap awkwardly */
+    .vaulty-title {
+        font-size: 1.8rem !important;
+    }
+    
+    /* Hide the "Deploy" or hamburger menu footer if desired */
+    footer {
+        display: none !important;
+    }
+}
+
+
 /* App chrome */
 [data-testid="stAppViewContainer"] { background: #ffffff !important; }
 [data-testid="stHeader"] { background: transparent !important; }
