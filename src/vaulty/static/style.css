@@ -1,183 +1,316 @@
-/* =========================================
-   Vaulty Streamlit — Global Styles
-   Maintains the polished light UI look
-   ========================================= */
+/* ==========================================================================
+   VAULTY DLP SCANNER — DESIGN SYSTEM & STYLES
+   ========================================================================== 
+   
+   TABLE OF CONTENTS:
+   1. Variables & Design Tokens
+   2. Global Streamlit Overrides
+   3. Typography & Headers
+   4. Component: Vaulty Card (Uploader)
+   5. Component: Findings Dashboard
+   6. UI Elements (Buttons, Inputs, Metrics)
+   7. Mobile Responsiveness
+   ========================================================================== */
 
-/* -------------------------------------------------------
-   1. Mobile-specific adjustments (The "Golden Rules")
-   ------------------------------------------------------- */
-@media (max-width: 640px) {
-    /* Reduce the massive top padding Streamlit adds */
-    .block-container {
-        padding-top: 2rem !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-    
-    /* Make the title smaller on mobile so it doesn't wrap awkwardly */
-    .vaulty-title {
-        font-size: 1.8rem !important;
-    }
-    
-    /* Hide the "Deploy" or hamburger menu footer if desired */
-    footer {
-        display: none !important;
-    }
-    
-    /* Ensure charts don't overflow */
-    canvas {
-        max-width: 100% !important;
-    }
+/* --------------------------------------------------------------------------
+   1. VARIABLES & DESIGN TOKENS
+   -------------------------------------------------------------------------- */
+:root {
+  /* Brand Colors */
+  --primary-blue: #2563eb;
+  --dark-blue:    #1f4fbc;
+  --success-green:#10b981;
+  --danger-red:   #ef4444;
+  
+  /* Neutral Scale */
+  --bg-white:     #ffffff;
+  --bg-sidebar:   #f8f9fa;
+  --text-dark:    #111827;
+  --text-muted:   #6b7280;
+  --border-subtle:rgba(0, 0, 0, 0.08);
+  
+  /* Spacing & Radius */
+  --radius-lg:    16px;
+  --radius-md:    12px;
+  --radius-sm:    6px;
 }
 
-/* -------------------------------------------------------
-   2. App Chrome & Global Theme overrides
-   ------------------------------------------------------- */
-/* Force Light Mode Backgrounds */
-[data-testid="stAppViewContainer"] { background: #ffffff !important; }
-[data-testid="stHeader"] { background: transparent !important; }
-[data-testid="stSidebar"] { background-color: #f8f9fa !important; border-right: 1px solid rgba(0,0,0,0.05); }
+/* --------------------------------------------------------------------------
+   2. GLOBAL STREAMLIT OVERRIDES
+   Note: !important is required here to override Streamlit's inline styles.
+   -------------------------------------------------------------------------- */
 
-/* Title + subnav */
+/* Force Light Theme Layout */
+[data-testid="stAppViewContainer"] {
+  background: var(--bg-white) !important;
+}
+
+[data-testid="stHeader"] {
+  background: transparent !important;
+}
+
+[data-testid="stSidebar"] {
+  background-color: var(--bg-sidebar) !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* --------------------------------------------------------------------------
+   3. TYPOGRAPHY & HEADERS
+   -------------------------------------------------------------------------- */
+
 .vaulty-title {
   font-size: 42px;
   font-weight: 800;
-  letter-spacing: .1px;
+  letter-spacing: 0.1px;
   margin-top: 1rem !important;
-  margin-bottom: .25rem !important;
-  text-align: center; /* Added to align with logo */
-  color: #111827;
+  margin-bottom: 0.25rem !important;
+  text-align: center;
+  color: var(--text-dark);
 }
 
 .vaulty-subnav {
-  color:#1f4fbc !important;
-  font-size:20px;
-  font-weight:700;
+  color: var(--dark-blue) !important;
+  font-size: 20px;
+  font-weight: 700;
   margin-bottom: 1.5rem !important;
-  text-align: center; /* Added to align with logo */
+  text-align: center;
 }
-.vaulty-subnav a { color:#1f4fbc !important; text-decoration:none; }
 
-/* -------------------------------------------------------
-   3. Component Styling
-   ------------------------------------------------------- */
+.vaulty-subnav a {
+  color: var(--dark-blue) !important;
+  text-decoration: none;
+}
 
-/* Card around the uploader */
+/* Code block readability adjustment */
+pre, code {
+  font-size: 0.95rem !important;
+}
+
+/* --------------------------------------------------------------------------
+   4. COMPONENT: VAULTY CARD (UPLOADER WRAPPER)
+   -------------------------------------------------------------------------- */
+
 .vaulty-card {
-  background: #ffffff !important;
-  border: 1px solid rgba(0,0,0,.08) !important;
-  border-radius: 16px !important;
+  background: var(--bg-white) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-lg) !important;
   padding: 32px 26px !important;
-  box-shadow: 0 2px 10px rgba(0,0,0,.03) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
   max-width: 600px;
   margin: 0 auto;
 }
-.vaulty-card .uicon { text-align:center; font-size: 50px; opacity: .75; margin-bottom: 8px; }
-.vaulty-card .uhelp { text-align:center; margin-top: .5rem; color:#111827; opacity:.9; font-size: 16px; }
 
-/* Ensure Streamlit dropzone is light */
+.vaulty-card .uicon {
+  text-align: center;
+  font-size: 50px;
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+.vaulty-card .uhelp {
+  text-align: center;
+  margin-top: 0.5rem;
+  color: var(--text-dark);
+  opacity: 0.9;
+  font-size: 16px;
+}
+
+/* Streamlit Native Dropzone Customization */
 div[data-testid="stFileUploadDropzone"] {
-  background: #ffffff !important;
-  border: 1px solid rgba(0,0,0,.08) !important;
+  background: var(--bg-white) !important;
+  border: 1px solid var(--border-subtle) !important;
   border-radius: 14px !important;
-  box-shadow: 0 2px 10px rgba(0,0,0,.03) !important;
-}
-div[data-testid="stFileUploadDropzone"] * { color: #111827 !important; }
-
-/* Expanders (Scan Options) */
-div[data-testid="stExpander"] {
-    border: 1px solid rgba(0,0,0,.08) !important;
-    border-radius: 8px !important;
-    background-color: #ffffff !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
 }
 
-/* Button polish */
-.stButton > button:hover { opacity: 0.92; transform: translateY(-1px); transition: all 0.12s ease-in-out; }
-.stButton > button:active { transform: translateY(0); opacity: .88; }
+div[data-testid="stFileUploadDropzone"] * {
+  color: var(--text-dark) !important;
+}
 
+/* --------------------------------------------------------------------------
+   5. COMPONENT: FINDINGS DASHBOARD
+   -------------------------------------------------------------------------- */
+
+/* Container for finding list */
+.findings-wrap {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-white);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Finding Row */
+.frow {
+  display: grid;
+  grid-template-columns: 1fr 64px;
+  align-items: center;
+  padding: 10px 14px;
+}
+
+.frow + .frow {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.count {
+  text-align: right;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+/* Status Badges (Pills) */
+.pill {
+  width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.pill.email { background: var(--success-green); }
+.pill.ssn   { background: var(--primary-blue); }
+.pill.card  { background: var(--danger-red); }
+
+/* Scan Complete Status Box */
+.status-ok {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px auto;
+  color: var(--text-dark);
+  max-width: 600px;
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--success-green);
+  display: inline-block;
+  position: relative;
+}
+
+.checkbox:after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* --------------------------------------------------------------------------
+   6. UI ELEMENTS (BUTTONS, INPUTS, METRICS)
+   -------------------------------------------------------------------------- */
+
+/* Standard Buttons */
+.stButton > button {
+  border-radius: var(--radius-sm) !important;
+  font-weight: 500 !important;
+  transition: all 0.12s ease-in-out;
+}
+
+.stButton > button:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.stButton > button:active {
+  transform: translateY(0);
+  opacity: 0.88;
+}
+
+/* Primary Button Override */
 button[kind="primary"] {
-  background-color: #2563eb !important;
+  background-color: var(--primary-blue) !important;
   color: #fff !important;
-  border-radius: 6px !important;
   font-weight: 600 !important;
   border: none !important;
 }
 
-button[kind="secondary"], div.stButton button {
-  border-radius: 6px !important;
-  font-weight: 500 !important;
-  border: 1px solid rgba(0,0,0,0.1) !important;
+/* Secondary Button Override */
+button[kind="secondary"] {
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
 }
 
-/* Accessible focus ring */
+/* Download Button Styling */
+.stDownloadButton button {
+  background: var(--bg-white) !important;
+  color: var(--text-dark) !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  padding: 8px 14px !important;
+  width: 100%;
+}
+
+.stDownloadButton button:hover {
+  background-color: #f9fafb !important;
+  border-color: var(--primary-blue) !important;
+  color: var(--primary-blue) !important;
+}
+
+/* Focus States for Accessibility */
 :where(button, [role="button"], input, select, textarea):focus-visible {
-  outline: 3px solid #1f4fbc !important;
+  outline: 3px solid var(--dark-blue) !important;
   outline-offset: 2px !important;
   box-shadow: none !important;
 }
 
-/* -------------------------------------------------------
-   4. Findings & Results Styling
-   ------------------------------------------------------- */
-
-/* Findings Summary card */
-.findings-wrap {
-  border:1px solid rgba(0,0,0,.08);
-  border-radius:12px;
-  overflow:hidden;
-  background:#fff;
-  max-width: 600px;
-  margin: 0 auto;
-}
-.frow { display:grid; grid-template-columns: 1fr 64px; align-items:center; padding: 10px 14px; }
-.frow + .frow { border-top:1px solid rgba(0,0,0,.08); }
-.badge { display:flex; align-items:center; gap:10px; font-weight:600; }
-.count { text-align:right; font-weight:700; color:#111827; }
-
-/* Colored mini-badges (For Findings) */
-.pill {
-  width:18px; height:18px; display:inline-grid; place-items:center;
-  border-radius:6px; color:#fff; font-size:12px; line-height:1;
-}
-.pill.email { background:#10b981; } /* green */
-.pill.ssn   { background:#2563eb; } /* blue  */
-.pill.card  { background:#ef4444; } /* red   */
-
-/* Status line + download button */
-.status-ok {
-  display:flex; align-items:center; gap:10px; margin:14px auto; color:#111827; max-width: 600px;
-}
-.checkbox {
-  width:18px; height:18px; border-radius:4px; background:#10b981; display:inline-block; position:relative;
-}
-.checkbox:after {
-  content:""; position:absolute; left:5px; top:2px; width:5px; height:9px;
-  border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg);
+/* Expander Styling */
+div[data-testid="stExpander"] {
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 8px !important;
+  background-color: var(--bg-white) !important;
 }
 
-/* Download Button Polish */
-.stDownloadButton button {
-  background:#fff !important; color:#111827 !important;
-  border:1px solid rgba(0,0,0,.15) !important; border-radius:10px !important;
-  box-shadow:none !important; padding:8px 14px !important;
-  width: 100%;
-}
-.stDownloadButton button:hover {
-    background-color: #f9fafb !important;
-    border-color: #2563eb !important;
-    color: #2563eb !important;
-}
-
-/* -------------------------------------------------------
-   5. Utility & Code
-   ------------------------------------------------------- */
-pre, code { font-size: 0.95rem !important; }
-
-/* Metrics adjustments */
+/* Metrics Styling */
 [data-testid="stMetricValue"] {
-    font-size: 28px !important;
-    color: #111827 !important;
+  font-size: 28px !important;
+  color: var(--text-dark) !important;
 }
+
 [data-testid="stMetricLabel"] {
-    color: #6b7280 !important;
+  color: var(--text-muted) !important;
+}
+
+/* --------------------------------------------------------------------------
+   7. MOBILE RESPONSIVENESS
+   -------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  /* Reduce Streamlit's default massive padding on mobile */
+  .block-container {
+    padding-top: 2rem !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  /* Scale down title text */
+  .vaulty-title {
+    font-size: 1.8rem !important;
+  }
+
+  /* Clean up footer/menu on small screens */
+  footer {
+    display: none !important;
+  }
+
+  /* Prevent chart overflow */
+  canvas {
+    max-width: 100% !important;
+  }
 }
