@@ -235,15 +235,17 @@ def main():
             scan_safe_name = "demo_file.txt"
             scan_elapsed_seconds = 1.23
             scan_findings = [
-                Finding("email", "user@example.com", 10, 26, 2.0, "base=2.0"),
-                Finding("ssn_us", "123-45-6789", 40, 51, 4.0, "base=4.0"),
+                Finding(
+                    "email", "user@example.com", 10, 26, 2.0, "Detected email address in document"
+                ),
+                Finding("ssn_us", "123-45-6789", 40, 51, 4.0, "Dectected what appears to be a SSN"),
                 Finding(
                     "credit_card",
                     "4111 1111 1111 1111",
                     80,
                     99,
                     4.5,
-                    "base=4.0+boost",
+                    "Risk elevated: Found sensitive context keyword 'visa' nearby.",
                 ),
                 Finding(
                     "aws_key",
@@ -251,7 +253,7 @@ def main():
                     150,
                     170,
                     10.0,
-                    "base=10.0",
+                    "Critical: High-entropy pattern matches known secret format.",
                 ),
             ]
             extracted_text = (
