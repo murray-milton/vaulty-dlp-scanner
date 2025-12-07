@@ -1,0 +1,16 @@
+name: Keep App Alive
+
+# Run this workflow every 15 minutes
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  # Allow running manually from the Actions tab for testing
+  workflow_dispatch:
+
+jobs:
+  ping_app:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Vaulty App
+        run: |
+          curl -I https://vaultydlpscanner.streamlit.app/
